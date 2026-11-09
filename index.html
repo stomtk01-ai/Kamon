@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสารสนเทศเพื่อการพัฒนาชุมชน - Dashboard ข้อมูล กชช.2ค</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Font: Sarabun -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Sarabun', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        },
+                        urgent: '#ef4444',   // เร่งรัดพัฒนา (แดง)
+                        moderate: '#f59e0b', // ปานกลาง (ส้ม/เหลือง)
+                        advanced: '#10b981'  // ก้าวหน้า (เขียว)
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom styling for glassmorphism and subtle animations */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.5);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.8);
+        }
+    </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col bg-slate-950 text-slate-100 overflow-x-hidden">
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-40 w-full glass-panel border-b border-slate-800 px-4 lg:px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
+                <i class="fa-solid me-0 fa-chart-pie text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-snug tracking-wide text-white">ระบบสารสนเทศเพื่อการพัฒนาชุมชน</h1>
+                <p class="text-xs text-slate-400">สรุปผลการจัดเก็บและวิเคราะห์ข้อมูล กชช.2ค (ระดับหมู่บ้าน)</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- Cycle Selector -->
+            <div class="hidden sm:flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 text-sm">
+                <i class="fa-regular fa-calendar-check text-sky-400"></i>
+                <span class="text-xs text-slate-400">รอบการจัดเก็บ:</span>
+                <select id="cycleSelect" onchange="updateDashboardData()" class="bg-transparent font-medium text-slate-200 outline-none cursor-pointer">
+                    <option value="2566" class="bg-slate-900">ปี 2566 (ล่าสุด)</option>
+                    <option value="2564" class="bg-slate-900">ปี 2564</option>
+                    <option value="2562" class="bg-slate-900">ปี 2562</option>
+                </select>
+            </div>
+
+            <!-- Export / Action Button -->
+            <button onclick="exportDataReport()" class="hidden md:flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-md shadow-sky-600/30">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span>ส่งออกรายงาน</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 glass-panel border-r border-slate-800 hidden md:flex flex-col justify-between p-4 shrink-0">
+            <div class="space-y-6">
+                <!-- Navigation Links -->
+                <div>
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">เมนูหลัก</div>
+                    <nav class="space-y-1">
+                        <a href="#overview" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sky-500/15 text-sky-400 font-medium text-sm transition">
+                            <i class="fa-solid fa-square-poll-vertical w-5 text-center"></i>
+                            <span>ภาพรวมพัฒนาการ</span>
+                        </a>
+                        <a href="#indicators" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 text-sm transition">
+                            <i class="fa-solid fa-list-check w-5 text-center"></i>
+                            <span>ตัวชี้วัด 33 ตัว</span>
+                        </a>
+                        <a href="#village-table" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 text-sm transition">
+                            <i class="fa-solid fa-sitemap w-5 text-center"></i>
+                            <span>รายชื่อหมู่บ้านเป้าหมาย</span>
+                        </a>
+                        <a href="#simulator" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 text-sm transition">
+                            <i class="fa-solid fa-sliders w-5 text-center"></i>
+                            <span>จำลองประเมินหมู่บ้าน</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Category Filters Sidebar Info -->
+                <div class="pt-4 border-t border-slate-800/80">
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 px-2">หมวดตัวชี้วัดหลัก</div>
+                    <ul class="space-y-2 text-xs text-slate-400 px-2">
+                        <li class="flex items-center justify-between">
+                            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-indigo-500"></span> 1. โครงสร้างพื้นฐาน</span>
+                            <span class="text-slate-500 font-mono">6 ตัว</span>
+                        </li>
+                        <li class="flex items-center justify-between">
+                            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> 2. สภาพเศรษฐกิจ</span>
+                            <span class="text-slate-500 font-mono">7 ตัว</span>
+                        </li>
+                        <li class="flex items-center justify-between">
+                            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-500"></span> 3. สุขภาพและอนามัย</span>
+                            <span class="text-slate-500 font-mono">5 ตัว</span>
+                        </li>
+                        <li class="flex items-center justify-between">
+                            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-sky-500"></span> 4. ความรู้/การศึกษา</span>
+                            <span class="text-slate-500 font-mono">5 ตัว</span>
+                        </li>
+                        <li class="flex items-center justify-between">
+                            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-rose-500"></span> 5. ทรัพยากร/สิ่งแวดล้อม</span>
+                            <span class="text-slate-500 font-mono">4 ตัว</span>
+                        </li>
+                        <li class="flex items-center justify-between">
+                            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-purple-500"></span> 6. ความเข้มแข็งชุมชน</span>
+                            <span class="text-slate-500 font-mono">6 ตัว</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Footer info inside sidebar -->
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-center">
+                <p class="text-[11px] text-slate-400">กรมการพัฒนาชุมชน</p>
+                <p class="text-[10px] text-slate-500 mt-0.5">กระทรวงมหาดไทย</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
+
+            <!-- Title & Quick Filters -->
+            <div id="overview" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                        <span>สรุปสถิติระดับการพัฒนาหมู่บ้าน</span>
+                        <span class="text-xs font-normal text-sky-400 bg-sky-950/80 border border-sky-800/80 px-2.5 py-1 rounded-full">กชช.2ค</span>
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">การประเมินสภาพความเป็นอยู่และระดับการพัฒนาชนบทในภาพรวม</p>
+                </div>
+                
+                <div class="flex items-center gap-2 self-start sm:self-auto">
+                    <button onclick="filterRegion('all')" class="region-btn bg-sky-600 text-white text-xs px-3 py-1.5 rounded-lg border border-sky-500 transition">ทั้งหมด</button>
+                    <button onclick="filterRegion('north')" class="region-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition">ภาคเหนือ</button>
+                    <button onclick="filterRegion('ne')" class="region-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition">ภาคอีสาน</button>
+                    <button onclick="filterRegion('central')" class="region-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition">ภาคกลาง</button>
+                    <button onclick="filterRegion('south')" class="region-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition">ภาคใต้</button>
+                </div>
+            </div>
+
+            <!-- Metric Cards Grid (KPIs) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- KPI 1: Total Villages -->
+                <div class="glass-card p-5 rounded-2xl border-l-4 border-l-sky-500 flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-medium text-slate-400">จำนวนหมู่บ้านสำรวจทั้งหมด</p>
+                        <h3 id="kpiTotal" class="text-3xl font-extrabold text-white mt-1 font-mono">75,086</h3>
+                        <div class="flex items-center gap-1 text-emerald-400 text-xs mt-2">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                            <span>ครบ 100% ตามเป้าหมาย</span>
+                        </div>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                        <i class="fa-solid fa-house-chimney text-lg"></i>
+                    </div>
+                </div>
+
+                <!-- KPI 2: Advanced Villages -->
+                <div class="glass-card p-5 rounded-2xl border-l-4 border-l-emerald-500 flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-medium text-slate-400">หมู่บ้านก้าวหน้า (ระดับ 3)</p>
+                        <h3 id="kpiAdvanced" class="text-3xl font-extrabold text-emerald-400 mt-1 font-mono">48,230</h3>
+                        <p class="text-xs text-slate-400 mt-2">คิดเป็น <span id="pctAdvanced" class="text-emerald-400 font-semibold">64.2%</span> ของทั้งหมด</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                        <i class="fa-solid fa-circle-check text-lg"></i>
+                    </div>
+                </div>
+
+                <!-- KPI 3: Moderate Villages -->
+                <div class="glass-card p-5 rounded-2xl border-l-4 border-l-amber-500 flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-medium text-slate-400">หมู่บ้านปานกลาง (ระดับ 2)</p>
+                        <h3 id="kpiModerate" class="text-3xl font-extrabold text-amber-400 mt-1 font-mono">22,140</h3>
+                        <p class="text-xs text-slate-400 mt-2">คิดเป็น <span id="pctModerate" class="text-amber-400 font-semibold">29.5%</span> ของทั้งหมด</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                    </div>
+                </div>
+
+                <!-- KPI 4: Urgent Need Villages -->
+                <div class="glass-card p-5 rounded-2xl border-l-4 border-l-rose-500 flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-medium text-slate-400">หมู่บ้านเร่งรัดพัฒนา (ระดับ 1)</p>
+                        <h3 id="kpiUrgent" class="text-3xl font-extrabold text-rose-400 mt-1 font-mono">4,716</h3>
+                        <p class="text-xs text-slate-400 mt-2">คิดเป็น <span id="pctUrgent" class="text-rose-400 font-semibold">6.3%</span> (เป้าหมายแก้ไข)</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
+                        <i class="fa-solid fa-circle-exclamation text-lg"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section 1: Distribution & Regional Comparison -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Doughnut Chart: Village Classification -->
+                <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-base text-white">สัดส่วนระดับการพัฒนาหมู่บ้าน</h3>
+                            <p class="text-xs text-slate-400">จำแนกตามเกณฑ์ กชช.2ค 3 ระดับ</p>
+                        </div>
+                        <button onclick="toggleDoughnutLegend()" class="text-slate-400 hover:text-slate-200 text-xs"><i class="fa-solid fa-circle-info"></i></button>
+                    </div>
+                    <div class="relative flex-1 flex items-center justify-center min-h-[220px]">
+                        <canvas id="classificationChart"></canvas>
+                    </div>
+                    <div class="mt-4 grid grid-cols-3 text-center border-t border-slate-800/80 pt-3">
+                        <div>
+                            <div class="text-[11px] text-slate-400">เร่งรัดพัฒนา</div>
+                            <div class="text-xs font-bold text-rose-400 mt-0.5">ระดับ 1</div>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400">ปานกลาง</div>
+                            <div class="text-xs font-bold text-amber-400 mt-0.5">ระดับ 2</div>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400">ก้าวหน้า</div>
+                            <div class="text-xs font-bold text-emerald-400 mt-0.5">ระดับ 3</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bar Chart: Regional Progress Status -->
+                <div class="glass-panel p-5 rounded-2xl lg:col-span-2 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-base text-white">ระดับการพัฒนาจำแนกรายภาค</h3>
+                            <p class="text-xs text-slate-400">เปรียบเทียบสัดส่วนหมู่บ้านในแต่ละภูมิภาค</p>
+                        </div>
+                        <div class="text-xs text-slate-400 flex items-center gap-3">
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> ก้าวหน้า</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> ปานกลาง</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> เร่งรัด</span>
+                        </div>
+                    </div>
+                    <div class="relative flex-1 min-h-[240px]">
+                        <canvas id="regionalChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section 2: Indicator Radar & High-Need Problem Indicators -->
+            <div id="indicators" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Radar Chart: Performance by Indicator Category -->
+                <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="font-semibold text-base text-white">ความสมบูรณ์จำแนกตามหมวดพัฒนา</h3>
+                            <p class="text-xs text-slate-400">คะแนนเฉลี่ย 6 หมวดหลัก (เต็ม 100%)</p>
+                        </div>
+                    </div>
+                    <div class="relative flex-1 min-h-[260px] flex items-center justify-center">
+                        <canvas id="categoryRadarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Critical Indicators List (ตัวชี้วัดที่ตกเกณฑ์มากที่สุด) -->
+                <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h3 class="font-semibold text-base text-white">5 ตัวชี้วัดที่ตกเกณฑ์มากที่สุด</h3>
+                                <p class="text-xs text-slate-400">หมู่บ้านที่มีปัญหาความเดือดร้อนเร่งด่วน</p>
+                            </div>
+                            <span class="text-xs bg-rose-500/10 text-rose-400 px-2.5 py-1 rounded-full border border-rose-500/20 font-medium">ความเดือดร้อนสูง</span>
+                        </div>
+
+                        <div class="space-y-3.5 mt-4">
+                            <!-- Indicator Item 1 -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-200 font-medium">1. น้ำเพื่อการเกษตรกรรม (หมวดเศรษฐกิจ)</span>
+                                    <span class="text-rose-400 font-mono font-semibold">18,420 หมู่บ้าน (24.5%)</span>
+                                </div>
+                                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-rose-500 to-amber-500 h-2 rounded-full" style="width: 24.5%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Indicator Item 2 -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-200 font-medium">2. รายได้เฉลี่ยของคนในหมู่บ้าน</span>
+                                    <span class="text-rose-400 font-mono font-semibold">14,210 หมู่บ้าน (18.9%)</span>
+                                </div>
+                                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-rose-500 to-amber-500 h-2 rounded-full" style="width: 18.9%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Indicator Item 3 -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-200 font-medium">3. เอกสารสิทธิ์ที่ดินทำกิน</span>
+                                    <span class="text-amber-400 font-mono font-semibold">12,800 หมู่บ้าน (17.0%)</span>
+                                </div>
+                                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-rose-500 to-amber-500 h-2 rounded-full" style="width: 17%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Indicator Item 4 -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-200 font-medium">4. การจัดการขยะและสิ่งแวดล้อม</span>
+                                    <span class="text-amber-400 font-mono font-semibold">9,950 หมู่บ้าน (13.2%)</span>
+                                </div>
+                                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-amber-500 to-yellow-500 h-2 rounded-full" style="width: 13.2%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Indicator Item 5 -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-200 font-medium">5. การเข้าถึงอินเทอร์เน็ตเพื่อการเรียนรู้</span>
+                                    <span class="text-sky-400 font-mono font-semibold">8,100 หมู่บ้าน (10.7%)</span>
+                                </div>
+                                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                    <div class="bg-sky-500 h-2 rounded-full" style="width: 10.7%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="text-[11px] text-slate-500 mt-4 border-t border-slate-800 pt-2">
+                        * หมายเหตุ: ข้อมูลตัวชี้วัดถูกนำไปใช้ประเมินร่วมเพื่อกำหนดแผนงบประมาณพัฒนาท้องถิ่น (อปท.)
+                    </p>
+                </div>
+            </div>
+
+            <!-- Target Villages Interactive Data Table -->
+            <div id="village-table" class="glass-panel p-5 rounded-2xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-semibold text-base text-white">รายชื่อหมู่บ้านเป้าหมายการพัฒนา</h3>
+                        <p class="text-xs text-slate-400">ค้นหาและกรองข้อมูลหมู่บ้านตามระดับพัฒนาการและพื้นที่</p>
+                    </div>
+
+                    <!-- Search and Status Filter controls -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                            <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="ค้นหาชื่อหมู่บ้าน/ตำบล/จังหวัด..." class="bg-slate-900 border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 w-48 sm:w-64">
+                        </div>
+                        <select id="statusFilter" onchange="filterTable()" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-sky-500">
+                            <option value="all">ทุกระดับการพัฒนา</option>
+                            <option value="urgent">เร่งรัดพัฒนา (ระดับ 1)</option>
+                            <option value="moderate">ปานกลาง (ระดับ 2)</option>
+                            <option value="advanced">ก้าวหน้า (ระดับ 3)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 py-3">รหัสหมู่บ้าน</th>
+                                <th class="px-4 py-3">ชื่อหมู่บ้าน</th>
+                                <th class="px-4 py-3">ตำบล / อำเภอ</th>
+                                <th class="px-4 py-3">จังหวัด</th>
+                                <th class="px-4 py-3 text-center">ระดับพัฒนาการ</th>
+                                <th class="px-4 py-3 text-center">ตัวชี้วัดที่ตกเกณฑ์</th>
+                                <th class="px-4 py-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="villageTableBody" class="divide-y divide-slate-800/60 bg-slate-950/40">
+                            <!-- JS injected rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination & Summary Footer -->
+                <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 pt-2 gap-2">
+                    <div id="tableSummaryText">แสดง 1 - 5 จากทั้งหมด 8 รายการตัวอย่าง</div>
+                    <div class="flex gap-1">
+                        <button class="px-3 py-1 bg-slate-900 border border-slate-800 rounded hover:bg-slate-800 disabled:opacity-50" disabled>ก่อนหน้า</button>
+                        <button class="px-3 py-1 bg-sky-600 text-white rounded">1</button>
+                        <button class="px-3 py-1 bg-slate-900 border border-slate-800 rounded hover:bg-slate-800">2</button>
+                        <button class="px-3 py-1 bg-slate-900 border border-slate-800 rounded hover:bg-slate-800">ถัดไป</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Village NRD 2C Simulator Card -->
+            <div id="simulator" class="glass-panel p-5 rounded-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h3 class="font-semibold text-base text-white flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-sky-400"></i>
+                            <span>เครื่องมือจำลองการประเมินระดับหมู่บ้าน กชช.2ค</span>
+                        </h3>
+                        <p class="text-xs text-slate-400">ทดลองปรับเปลี่ยนตัวชี้วัดหลักเพื่อคำนวณระดับการพัฒนาหมู่บ้านโดยอัตโนมัติ</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                    <!-- Sliders Input Form -->
+                    <div class="md:col-span-2 space-y-4">
+                        <div>
+                            <div class="flex justify-between text-xs font-medium text-slate-300 mb-1">
+                                <span>1. ด้านโครงสร้างพื้นฐาน (ถนน, ไฟฟ้า, น้ำประปา)</span>
+                                <span id="simVal1" class="font-mono text-sky-400">80%</span>
+                            </div>
+                            <input type="range" id="simScore1" min="0" max="100" value="80" oninput="calculateSimulation()" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-medium text-slate-300 mb-1">
+                                <span>2. ด้านสภาพเศรษฐกิจ & รายได้ (อาชีพ, แหล่งน้ำเกษตร)</span>
+                                <span id="simVal2" class="font-mono text-sky-400">55%</span>
+                            </div>
+                            <input type="range" id="simScore2" min="0" max="100" value="55" oninput="calculateSimulation()" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-medium text-slate-300 mb-1">
+                                <span>3. ด้านสุขอนามัยและความปลอดภัย</span>
+                                <span id="simVal3" class="font-mono text-sky-400">90%</span>
+                            </div>
+                            <input type="range" id="simScore3" min="0" max="100" value="90" oninput="calculateSimulation()" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-medium text-slate-300 mb-1">
+                                <span>4. ด้านความรู้และการศึกษา</span>
+                                <span id="simVal4" class="font-mono text-sky-400">75%</span>
+                            </div>
+                            <input type="range" id="simScore4" min="0" max="100" value="75" oninput="calculateSimulation()" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-medium text-slate-300 mb-1">
+                                <span>5. ด้านทรัพยากรธรรมชาติและสิ่งแวดล้อม</span>
+                                <span id="simVal5" class="font-mono text-sky-400">60%</span>
+                            </div>
+                            <input type="range" id="simScore5" min="0" max="100" value="60" oninput="calculateSimulation()" class="w-full accent-sky-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+
+                    <!-- Simulator Live Result Card -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between text-center">
+                        <div>
+                            <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">ผลประเมินจำลอง</span>
+                            <div id="simResultBadge" class="my-4 inline-block px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                หมู่บ้านก้าวหน้า (ระดับ 3)
+                            </div>
+                            <div class="text-4xl font-extrabold text-white font-mono my-1" id="simTotalScore">72.0</div>
+                            <p class="text-xs text-slate-400">คะแนนเฉลี่ยรวมทุกหมวดตัวชี้วัด</p>
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-slate-800 text-left text-xs space-y-1.5 text-slate-400">
+                            <p class="font-medium text-slate-300">เกณฑ์การตัดสิน กชช.2ค:</p>
+                            <div class="flex justify-between"><span>• ระดับ 1 (เร่งรัดพัฒนา):</span> <span class="font-mono text-rose-400">&lt; 50%</span></div>
+                            <div class="flex justify-between"><span>• ระดับ 2 (ปานกลาง):</span> <span class="font-mono text-amber-400">50% - 69%</span></div>
+                            <div class="flex justify-between"><span>• ระดับ 3 (ก้าวหน้า):</span> <span class="font-mono text-emerald-400">≥ 70%</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Village Detail Details -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative space-y-4">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                    <i class="fa-solid fa-location-dot text-lg"></i>
+                </div>
+                <div>
+                    <h3 id="modalTitle" class="text-lg font-bold text-white">บ้านหนองน้ำใส</h3>
+                    <p id="modalSub" class="text-xs text-slate-400">ต.หนองบัว อ.เมือง จ.เชียงใหม่</p>
+                </div>
+            </div>
+
+            <div class="border-t border-b border-slate-800 py-3 space-y-2 text-xs">
+                <div class="flex justify-between"><span class="text-slate-400">รหัสหมู่บ้าน:</span><span id="modalCode" class="font-mono text-slate-200">50010203</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">สถานะ กชช.2ค:</span><span id="modalStatus" class="font-bold text-rose-400">เร่งรัดพัฒนา (ระดับ 1)</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">จำนวนครัวเรือน:</span><span id="modalHouseholds" class="text-slate-200">145 ครัวเรือน</span></div>
+            </div>
+
+            <div>
+                <h4 class="text-xs font-semibold text-slate-300 mb-2">ตัวชี้วัดที่ต้องได้รับการแก้ไขเร่งด่วน:</h4>
+                <ul id="modalProblems" class="space-y-1.5 text-xs text-rose-300 bg-rose-950/30 p-3 rounded-lg border border-rose-900/40">
+                    <!-- Dynamic problem list -->
+                </ul>
+            </div>
+
+            <div class="pt-2 flex justify-end gap-2">
+                <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded-lg">ปิดหน้าต่าง</button>
+                <button onclick="alert('ดาวน์โหลดแผนพัฒนาประจำหมู่บ้านเรียบร้อยแล้ว')" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-xs text-white rounded-lg flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> แผนพัฒนาหมู่บ้าน
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Mock dataset for dynamic updates
+        const dashboardDatasets = {
+            "2566": {
+                total: "75,086",
+                advanced: "48,230",
+                pctAdvanced: "64.2%",
+                moderate: "22,140",
+                pctModerate: "29.5%",
+                urgent: "4,716",
+                pctUrgent: "6.3%",
+                regional: {
+                    north: [58, 34, 8],
+                    ne: [60, 32, 8],
+                    central: [72, 23, 5],
+                    south: [65, 29, 6]
+                },
+                radar: [82, 64, 88, 76, 68, 85]
+            },
+            "2564": {
+                total: "74,950",
+                advanced: "43,470",
+                pctAdvanced: "58.0%",
+                moderate: "24,730",
+                pctModerate: "33.0%",
+                urgent: "6,750",
+                pctUrgent: "9.0%",
+                regional: {
+                    north: [52, 38, 10],
+                    ne: [54, 35, 11],
+                    central: [68, 26, 6],
+                    south: [60, 32, 8]
+                },
+                radar: [78, 58, 84, 71, 62, 80]
+            },
+            "2562": {
+                total: "74,820",
+                advanced: "38,900",
+                pctAdvanced: "52.0%",
+                moderate: "26,930",
+                pctModerate: "36.0%",
+                urgent: "8,990",
+                pctUrgent: "12.0%",
+                regional: {
+                    north: [45, 41, 14],
+                    ne: [48, 38, 14],
+                    central: [62, 30, 8],
+                    south: [55, 34, 11]
+                },
+                radar: [72, 51, 80, 65, 56, 75]
+            }
+        };
+
+        // Table Sample Data
+        const villageList = [
+            { code: "50010203", name: "บ้านหนองน้ำใส", subdistrict: "ต.หนองบัว", district: "อ.เมือง", province: "เชียงใหม่", status: "urgent", statusTxt: "เร่งรัดพัฒนา", failed: ["น้ำเพื่อการเกษตร", "รายได้เฉลี่ย"], households: 145 },
+            { code: "30040501", name: "บ้านดอนโพธิ์", subdistrict: "ต.ในเมือง", district: "อ.พิมาย", province: "นครราชสีมา", status: "urgent", statusTxt: "เร่งรัดพัฒนา", failed: ["เอกสารสิทธิ์ที่ดิน", "การจัดการขยะ"], households: 210 },
+            { code: "10020104", name: "บ้านคลองสอง", subdistrict: "ต.คลองหนึ่ง", district: "อ.คลองหลวง", province: "ปทุมธานี", status: "advanced", statusTxt: "ก้าวหน้า", failed: ["ไม่มี"], households: 380 },
+            { code: "80050302", name: "บ้านควนไม้แดง", subdistrict: "ต.ยางคีรี", district: "อ.ทุ่งสง", province: "นครศรีธรรมราช", status: "moderate", statusTxt: "ปานกลาง", failed: ["อินเทอร์เน็ตชุมชน"], households: 175 },
+            { code: "40010805", name: "บ้านโคกกะโพธิ์", subdistrict: "ต.บ้านเป็ด", district: "อ.เมือง", province: "ขอนแก่น", status: "moderate", statusTxt: "ปานกลาง", failed: ["น้ำเพื่อการเกษตร"], households: 190 },
+            { code: "57020402", name: "บ้านป่าแซง", subdistrict: "ต.แม่จัน", district: "อ.แม่จัน", province: "เชียงราย", status: "advanced", statusTxt: "ก้าวหน้า", failed: ["ไม่มี"], households: 130 },
+            { code: "73010206", name: "บ้านดอนยายหอม", subdistrict: "ต.ดอนยายหอม", district: "อ.เมือง", province: "นครปฐม", status: "advanced", statusTxt: "ก้าวหน้า", failed: ["ไม่มี"], households: 420 },
+            { code: "94030107", name: "บ้านจะแนะ", subdistrict: "ต.จะแนะ", district: "อ.จะแนะ", province: "นราธิวาส", status: "urgent", statusTxt: "เร่งรัดพัฒนา", failed: ["รายได้เฉลี่ย", "การศึกษา"], households: 165 }
+        ];
+
+        let classChart, regChart, radarChart;
+
+        // Initialize Charts & Tables on Page Load
+        window.onload = function() {
+            initDoughnutChart();
+            initRegionalChart();
+            initRadarChart();
+            renderVillageTable(villageList);
+            calculateSimulation();
+        };
+
+        // 1. Doughnut Chart Implementation
+        function initDoughnutChart() {
+            const ctx = document.getElementById('classificationChart').getContext('2d');
+            classChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ก้าวหน้า (ระดับ 3)', 'ปานกลาง (ระดับ 2)', 'เร่งรัดพัฒนา (ระดับ 1)'],
+                    datasets: [{
+                        data: [48230, 22140, 4716],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { family: 'Sarabun', size: 11 }, padding: 15 }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // 2. Regional Bar Chart Implementation
+        function initRegionalChart() {
+            const ctx = document.getElementById('regionalChart').getContext('2d');
+            regChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['ภาคเหนือ', 'ภาคตะวันออกเฉียงเหนือ', 'ภาคกลาง', 'ภาคใต้'],
+                    datasets: [
+                        { label: 'ก้าวหน้า (%)', data: [58, 60, 72, 65], backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'ปานกลาง (%)', data: [34, 32, 23, 29], backgroundColor: '#f59e0b', borderRadius: 4 },
+                        { label: 'เร่งรัด (%)', data: [8, 8, 5, 6], backgroundColor: '#ef4444', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false }, ticks: { color: '#94a3b8', font: { family: 'Sarabun' } } },
+                        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { family: 'Sarabun' } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // 3. Category Radar Chart Implementation
+        function initRadarChart() {
+            const ctx = document.getElementById('categoryRadarChart').getContext('2d');
+            radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['โครงสร้างพื้นฐาน', 'สภาพเศรษฐกิจ', 'สุขอนามัย', 'ความรู้/การศึกษา', 'สิ่งแวดล้อม', 'ความเข้มแข็งชุมชน'],
+                    datasets: [{
+                        label: 'คะแนนเฉลี่ยความสมบูรณ์ (%)',
+                        data: [82, 64, 88, 76, 68, 85],
+                        backgroundColor: 'rgba(2, 132, 199, 0.25)',
+                        borderColor: '#0284c7',
+                        pointBackgroundColor: '#38bdf8',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            pointLabels: { color: '#cbd5e1', font: { family: 'Sarabun', size: 11 } },
+                            ticks: { display: false, backdropColor: 'transparent' },
+                            min: 0,
+                            max: 100
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Render Dynamic Village Table
+        function renderVillageTable(data) {
+            const tbody = document.getElementById('villageTableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                let badgeClass = '';
+                if (item.status === 'urgent') badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                else if (item.status === 'moderate') badgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                else badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/60 transition";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-mono text-slate-400">${item.code}</td>
+                    <td class="px-4 py-3 font-medium text-white">${item.name}</td>
+                    <td class="px-4 py-3 text-slate-300">${item.subdistrict} / ${item.district}</td>
+                    <td class="px-4 py-3 text-slate-300">${item.province}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-block px-2.5 py-1 rounded-full border text-[11px] font-semibold ${badgeClass}">
+                            ${item.statusTxt}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center text-slate-400">${item.failed.join(', ')}</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="openModal('${item.code}')" class="text-sky-400 hover:text-sky-300 font-medium text-xs underline">
+                            รายละเอียด
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('tableSummaryText').innerText = `แสดง ${data.length} รายการจากทั้งหมด ${villageList.length} รายการ`;
+        }
+
+        // Filter Table Handler
+        function filterTable() {
+            const searchVal = document.getElementById('searchInput').value.toLowerCase();
+            const statusVal = document.getElementById('statusFilter').value;
+
+            const filtered = villageList.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(searchVal) ||
+                                      item.subdistrict.toLowerCase().includes(searchVal) ||
+                                      item.province.toLowerCase().includes(searchVal) ||
+                                      item.code.includes(searchVal);
+                
+                const matchesStatus = (statusVal === 'all') || (item.status === statusVal);
+
+                return matchesSearch && matchesStatus;
+            });
+
+            renderVillageTable(filtered);
+        }
+
+        // Update Dashboard by Year Cycle
+        function updateDashboardData() {
+            const cycle = document.getElementById('cycleSelect').value;
+            const data = dashboardDatasets[cycle];
+
+            document.getElementById('kpiTotal').innerText = data.total;
+            document.getElementById('kpiAdvanced').innerText = data.advanced;
+            document.getElementById('pctAdvanced').innerText = data.pctAdvanced;
+            document.getElementById('kpiModerate').innerText = data.moderate;
+            document.getElementById('pctModerate').innerText = data.pctModerate;
+            document.getElementById('kpiUrgent').innerText = data.urgent;
+            document.getElementById('pctUrgent').innerText = data.pctUrgent;
+
+            // Update Doughnut Chart
+            classChart.data.datasets[0].data = [
+                parseInt(data.advanced.replace(/,/g, '')),
+                parseInt(data.moderate.replace(/,/g, '')),
+                parseInt(data.urgent.replace(/,/g, ''))
+            ];
+            classChart.update();
+
+            // Update Radar Chart
+            radarChart.data.datasets[0].data = data.radar;
+            radarChart.update();
+        }
+
+        // Region quick filter simulation
+        function filterRegion(region) {
+            document.querySelectorAll('.region-btn').forEach(btn => {
+                btn.className = "region-btn bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition";
+            });
+            event.target.className = "region-btn bg-sky-600 text-white text-xs px-3 py-1.5 rounded-lg border border-sky-500 transition";
+
+            if (region === 'all') {
+                updateDashboardData();
+            } else {
+                // Adjust charts for specific region demo
+                const cycle = document.getElementById('cycleSelect').value;
+                const regData = dashboardDatasets[cycle].regional[region] || [60, 30, 10];
+                
+                classChart.data.datasets[0].data = [regData[0] * 300, regData[1] * 300, regData[2] * 300];
+                classChart.update();
+            }
+        }
+
+        // Interactive Simulator Calculation
+        function calculateSimulation() {
+            const s1 = parseInt(document.getElementById('simScore1').value);
+            const s2 = parseInt(document.getElementById('simScore2').value);
+            const s3 = parseInt(document.getElementById('simScore3').value);
+            const s4 = parseInt(document.getElementById('simScore4').value);
+            const s5 = parseInt(document.getElementById('simScore5').value);
+
+            document.getElementById('simVal1').innerText = s1 + '%';
+            document.getElementById('simVal2').innerText = s2 + '%';
+            document.getElementById('simVal3').innerText = s3 + '%';
+            document.getElementById('simVal4').innerText = s4 + '%';
+            document.getElementById('simVal5').innerText = s5 + '%';
+
+            const avg = ((s1 + s2 + s3 + s4 + s5) / 5).toFixed(1);
+            document.getElementById('simTotalScore').innerText = avg;
+
+            const badge = document.getElementById('simResultBadge');
+            if (avg >= 70) {
+                badge.className = "my-4 inline-block px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                badge.innerText = "หมู่บ้านก้าวหน้า (ระดับ 3)";
+            } else if (avg >= 50) {
+                badge.className = "my-4 inline-block px-4 py-2 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
+                badge.innerText = "หมู่บ้านปานกลาง (ระดับ 2)";
+            } else {
+                badge.className = "my-4 inline-block px-4 py-2 rounded-xl text-sm font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+                badge.innerText = "หมู่บ้านเร่งรัดพัฒนา (ระดับ 1)";
+            }
+        }
+
+        // Modal View Controls
+        function openModal(code) {
+            const item = villageList.find(v => v.code === code);
+            if (!item) return;
+
+            document.getElementById('modalTitle').innerText = item.name;
+            document.getElementById('modalSub').innerText = `${item.subdistrict} ${item.district} ${item.province}`;
+            document.getElementById('modalCode').innerText = item.code;
+            document.getElementById('modalStatus').innerText = `${item.statusTxt} (${item.status === 'urgent' ? 'ระดับ 1' : item.status === 'moderate' ? 'ระดับ 2' : 'ระดับ 3'})`;
+            document.getElementById('modalHouseholds').innerText = `${item.households} ครัวเรือน`;
+
+            const probList = document.getElementById('modalProblems');
+            probList.innerHTML = '';
+            if (item.failed[0] === "ไม่มี") {
+                probList.innerHTML = '<li class="text-emerald-400">• ผ่านเกณฑ์การประเมินครบทุกตัวชี้วัด</li>';
+            } else {
+                item.failed.forEach(prob => {
+                    probList.innerHTML += `<li>• ตัวชี้วัดตกเกณฑ์: ${prob}</li>`;
+                });
+            }
+
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        // Export Report Simulation
+        function exportDataReport() {
+            const cycle = document.getElementById('cycleSelect').value;
+            alert(`กำลังจัดเตรียมไฟล์รายงานสรุปข้อมูล กชช.2ค ประจำปี ${cycle} (รูปแบบ PDF/Excel)`);
+        }
+    </script>
+</body>
+</html>
